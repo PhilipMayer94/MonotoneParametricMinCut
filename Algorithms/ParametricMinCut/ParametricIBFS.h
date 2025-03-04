@@ -424,7 +424,7 @@ public:
 private:
     inline void initialize() noexcept {
         initialFlow.run();
-        const std::vector<double>& initialResidualCapacity = initialFlow.getCleanResidualCapacities();
+        const std::vector<double> initialResidualCapacity = initialFlow.getCleanResidualCapacities();
         std::vector<Vertex> sinkComponent;
         initializeSinkTree(sinkComponent);
         createInitialExcesses(sinkComponent, initialResidualCapacity);
@@ -452,13 +452,14 @@ private:
                 const Edge e = graph_.get(ReverseEdge, revE);
                 if (dist_[from] == INFTY) {
                     // Cut edge
-                    saturateEdgeInitial(e, revE, to);
+                    saturateCutEdgeInitial(e, revE, to);
                 } else if (to == sink_) {
                     if (initialResidualCapacity[e] > 0) {
                         initializeTreeSinkEdge(e, initialResidualCapacity[e]);
                         initializeTreeSinkEdge(revE, initialResidualCapacity[revE]);
+                        recalculateRootAlpha(from, e, alphaMin_);
                     } else {
-                        saturateEdgeInitial(e, revE, to);
+                        saturateSinkEdgeInitial(e, revE, to);
                     }
                 } else {
                     residualCapacity_[e] = FlowFunction(initialResidualCapacity[e]);
@@ -467,12 +468,20 @@ private:
         }
     }
 
-    inline void saturateEdgeInitial(const Edge e, const Edge revE, const Vertex to) noexcept {
+    inline void saturateCutEdgeInitial(const Edge e, const Edge revE, const Vertex to) noexcept {
         const FlowFunction& capacity = graph_.get(Capacity, e);
         residualCapacity_[e] = FlowFunction(0);
         residualCapacity_[revE] = capacity + graph_.get(Capacity, revE);
         excess_at_vertex_[to] += capacity - FlowFunction(capacity.eval(alphaMin_));
         excessVertices_.addVertex(to, dist_[to]);
+    }
+
+    inline void saturateSinkEdgeInitial(const Edge e, const Edge revE, const Vertex from) noexcept {
+        const FlowFunction& capacity = graph_.get(Capacity, e);
+        residualCapacity_[e] = FlowFunction(0);
+        residualCapacity_[revE] = capacity + graph_.get(Capacity, revE);
+        excess_at_vertex_[from] += FlowFunction(capacity.eval(alphaMin_)) - capacity;
+        excessVertices_.addVertex(from, dist_[from]);
     }
 
     inline void initializeTreeSinkEdge(const Edge e, const double initialResidualCapacity) noexcept {
@@ -499,7 +508,6 @@ private:
         size_t processedOrphans = 0;
         size_t processedUniqueOrphans = 0;
         currentTimestamp_++;
-        std::vector<Vertex> moved;
         while (!orphans_.empty()) {
             const Vertex v = orphans_.front();
             processedOrphans++;
@@ -524,7 +532,6 @@ private:
                 measurements.countAdoption(dist_[v]);
                 continue;
             }
-            moved.emplace_back(v);
             dist_[v] = INFTY;
             breakpointOfVertex_[v] = nextAlpha;
             if (breakpoints_.back() != nextAlpha) {
@@ -801,7 +808,7 @@ private:
     inline void checkQueue() noexcept {
         for (const Vertex v : graph_.vertices()) {
             if (treeData_.edgeToParent_[v] == noEdge) continue;
-            if (rootAlpha_[v] == INFTY) continue;
+            if (rootAlpha_[v].value_ == INFTY) continue;
             assert(alphaQ_.contains(&rootAlpha_[v]));
         }
     }
@@ -869,8 +876,10 @@ private:
 private:
     const ParametricMaxFlowInstance<FlowFunction>& instance_;
     const FlowGraph& graph_;
-    const Vertex& source_, sink_;
-    const double& alphaMin_, alphaMax_;
+    const Vertex& source_;
+    const Vertex& sink_;
+    const double& alphaMin_;
+    const double& alphaMax_;
     const int n;
 
     StaticWrapper wrapper;
