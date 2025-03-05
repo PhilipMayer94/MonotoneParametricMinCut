@@ -18,7 +18,7 @@ The folder ``Algorithms/StaticMinCut/`` contains static max-flow-min-cut algorit
 Algorithms for the monotone parametric min-cut problem can be found under ``Algorithms/ParametricMinCut``:
 * `DichotomicScheme.h`: An algorithm based on the classic dichotomic search technique for bicriteria optimization problems. It was first described by [Eisner and Severance](https://doi.org/10.1145/321978.321982) for this problem. The dichotomic scheme makes $O(n)$ calls to a static max-flow algorithm, which must be provided as the template parameter `SEARCH_ALGORITHM`. The graph is successively shrunk by contracting vertices that are known to lie in the source or sink component.
 * `DichotomicSchemeNoContraction.h`: A variant of the dichotomic scheme that does not shrink the graph. This is the algorithm proposed for the polygon aggregation problem by [Rottmann et al](https://doi.org/10.4230/LIPIcs.GIScience.2021.II.6). Note that this variant is prohibitively slow on large instances and is only provided for comparison.
-* `ParametricIBFS.h`: Our new IBFS-based algorithm.
+* `ParametricIBFS.h`: Our new algorithm (PBFS).
 
 All parametric algorithms are supplied with a template parameter `FLOW_FUNCTION`. This should be a class derived from `FlowFunction` (see `DataStructures/MaxFlow/FlowFunction.h`) that describes the edge capacity functions and how they are evaluated. Our implementation uses the class `LinearFlowFunction`, which describes functions of the form $f(x) = a \cdot x + b$.
 
@@ -36,10 +36,12 @@ cmake .. -DCMAKE_BUILD_TYPE=Release && cmake --build . --config Release
 ```
 
 ## Usage
-The algorithms can be run with the executable ```Benchmark```, which expects the input networks to be in a special binary format. Use the executable ```InstanceLoader``` to convert instances to this format. Two input types are supported:
+To reproduce the experiments from the paper, run the executable ```Benchmark```. This expects the input networks to be in a special binary format. Use the executable ```InstanceLoader``` to convert instances to this format. Two input types are supported:
 * Static max-flow instances in [DIMACS format](https://lpsolve.sourceforge.net/5.5/DIMACS_maxf.htm). The executable also offers a command for converting these into parametric instances.
 * Parametric max-flow instances in a custom, DIMACS-like format. Example instances and a documentation of the format can be found [here](https://zenodo.org/records/13642985).
 For more detailed usage instructions, launch either executable without arguments.
+
+If you have a parametric instance in our DIMACS-like format for which you want to compute a solution, run ```RunPBFS```. The solution is encoded in CSV format by listing the breakpoint for each vertex. This is the value of $x$ for which the vertex moves from the sink component to the source component.
 
 ## Benchmarking
 A guide for running the benchmark experiments can be found in `Benchmark/README.md`.
